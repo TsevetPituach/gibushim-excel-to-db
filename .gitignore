@@ -1,0 +1,25 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Logs and outputs
+logs/
+out/
+*.log
+*.csv
+
+# Packaging
+build/
+dist/
+*.egg-info/
+
+# OS / Editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Wheels and vendored deps (kept in repo intentionally)
+# wheelhouse/ and vendor/ are committed; do not ignore by default
+

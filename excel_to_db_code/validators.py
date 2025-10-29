@@ -1,29 +1,11 @@
-from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Tuple
-from pydantic import BaseModel, validator
+from typing import Any, Dict, List, Optional, Tuple, Set
 
-from excel_to_db_code.evaluation_insert import EvaluationInsert
+from excel_to_db_code.models.duplication_validation import DuplicationValidation
+from excel_to_db_code.models.excel_validation_error import ExcelValidationError
 
-
-class HalfInput(BaseModel):
-    group_id: int
-    chest_number: int
-    candidate_name: Optional[str] = None
-    assessor_name: Optional[str] = None
-    grade: int
-    comment: str
-
-    @validator("comment", pre=True)
-    def ensure_comment_str(cls, v: Any) -> str:
-        if v is None:
-            return ""
-        return str(v)
-
-@dataclass
-class InsertUniqueKeys(BaseModel):
-    stage: int
-    assessor_id: int
-    soldier_id: int
+from .models import HalfInput
+from .models.evaluation_insert import EvaluationInsert
+from .db import DB
 
 
 def is_empty_value(v: Any) -> bool:
@@ -43,26 +25,19 @@ def is_half_empty(d: Dict[str, Any]) -> bool:
     return all(is_empty_value(d.get(k)) for k in keys)
 
 
-class ValidationError(BaseModel):
-    row_number: int
-    half: int  # 1 or 2
-    field: str
-    message: str
-
-
 def validate_half(
     raw: Dict[str, Any],
     row_number: int,
     half: int,
-) -> Tuple[Optional[HalfInput], List[ValidationError]]:
-    errors: List[ValidationError] = []
+) -> Tuple[Optional[HalfInput], List[ExcelValidationError]]:
+    errors: List[ExcelValidationError] = []
 
     # Required fields: group_id, chest_number, grade, comment
     required_fields = ["group_id", "chest_number", "grade", "comment"]
     for field in required_fields:
         if is_empty_value(raw.get(field)):
             errors.append(
-                ValidationError(
+                ExcelValidationError(
                     row_number=row_number, half=half, field=field, message="missing required field",
                 )
             )
@@ -80,7 +55,7 @@ def validate_half(
                     raw[field] = int(v)
             except Exception:
                 errors.append(
-                    ValidationError(
+                    ExcelValidationError(
                         row_number=row_number,
                         half=half,
                         field=field,
@@ -96,27 +71,37 @@ def validate_half(
         return model, []
     except Exception as e:  # Pydantic validation
         errors.append(
-            ValidationError(
+            ExcelValidationError(
                 row_number=row_number, half=half, field="__model__", message=str(e)
             )
         )
         return None, errors
     
 
-from typing import List, Tuple, Dict, Set
+def _insert_key(ev: EvaluationInsert) -> DuplicationValidation:
+    return DuplicationValidation(ev.stage, ev.assessor_id, ev.soldier_id)
 
-def _insert_key(ev: EvaluationInsert) -> Tuple[int, int, int]:
-    return (ev.stage, ev.assessor_id, ev.soldier_id)
-
-def find_duplicate_keys_in_excel(inserts: List[EvaluationInsert]) -> List[InsertUniqueKeys]:
-    seen: Set[InsertUniqueKeys] = set()
-    dups: Set[InsertUniqueKeys] = set()
+def find_duplicate_keys_in_excel(inserts: List[EvaluationInsert]) -> List[DuplicationValidation]:
+    """Return duplicates by (stage, assessor_id, soldier_id) present in Excel-derived inserts."""
+    seen: List[DuplicationValidation] = []
+    duplications: List[DuplicationValidation] = []
     for ev in inserts:
-        k = _insert_key(ev)
-        if k in seen:
-            dups.add(k)
+        keys = _insert_key(ev)
+        if keys in seen:
+            duplications.append(keys)
         else:
-            seen.add(k)
-    return sorted(dups)
+            seen.append(keys)
+    return duplications
+
+
+def find_duplicate_keys_in_db(db: DB, inserts: List[EvaluationInsert]) -> List[DuplicationValidation]:
+    """Check which (stage, assessor_id, soldier_id) from inserts already exist in the DB,
+    """
+    inserts_keys: List[DuplicationValidation] = [
+        DuplicationValidation(ev.stage, ev.assessor_id, ev.soldier_id) for ev in inserts
+    ]
+    if not inserts_keys:
+        return []
+    return db.find_existing_evaluation_keys(inserts_keys)
 
 

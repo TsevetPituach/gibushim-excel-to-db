@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 from contextlib import contextmanager
-from typing import Iterable, List, Optional, Sequence, Tuple
+from typing import List, Optional, Sequence, Tuple
 from enum import Enum
 
 import psycopg2
 from psycopg2.extensions import connection as PGConnection
+from psycopg2.extras import execute_values, NamedTupleCursor
+from .models.duplication_validation import DuplicationValidation
 
 from .logger import get_logger
 
@@ -29,11 +31,14 @@ class DB:
             self._conn = None
 
     @contextmanager
-    def cursor(self):
+    def cursor(self, cursor_factory=None):
         if self._conn is None:
             self.connect()
         assert self._conn is not None
-        cur = self._conn.cursor()
+        if cursor_factory is not None:
+            cur = self._conn.cursor(cursor_factory=cursor_factory)
+        else:
+            cur = self._conn.cursor()
         try:
             yield cur
         finally:
@@ -56,6 +61,41 @@ class DB:
         if len(rows) == 1:
             return int(rows[0][0])
         return None
+
+
+    def find_existing_evaluation_keys(
+        self, keys: Sequence[DuplicationValidation]
+    ) -> List[DuplicationValidation]:
+        """
+        Given (stage, assessor_id, soldier_id) keys, return those that already exist
+        in api_assessorevaluation.
+        """
+        if not keys:
+            return []
+        sql = (
+            """
+            SELECT e.stage, e.assessor_id, e.soldier_id
+            FROM api_assessorevaluation e
+            JOIN (VALUES %s) AS v(stage, assessor_id, soldier_id)
+              ON (e.stage, e.assessor_id, e.soldier_id) = (v.stage, v.assessor_id, v.soldier_id)
+            JOIN api_participant p ON p.id = e.soldier_id
+            """
+        )
+        # Build args list of tuples for execute_values
+        argslist = [(int(k.stage), int(k.assessor_id), int(k.soldier_id)) for k in keys]
+        with self.cursor(cursor_factory=NamedTupleCursor) as cur:
+            execute_values(cur, sql, argslist)
+            rows = cur.fetchall()
+        # rows come as named tuples: (stage, assessor_id, soldier_id)
+        return [
+            DuplicationValidation(
+                stage=int(r.stage),
+                assessor_id=int(r.assessor_id),
+                soldier_id=int(r.soldier_id),
+            )
+            for r in rows
+        ]
+
 
     class AssessorRole(str, Enum):
         GROUP_COMMANDER = "מפקד קבוצה"

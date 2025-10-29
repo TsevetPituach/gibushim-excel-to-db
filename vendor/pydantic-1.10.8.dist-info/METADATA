@@ -123,7 +123,7 @@ See [this post](https://docs.pydantic.dev/blog/pydantic-v2-alpha/) for more deta
 
 * Implement logic to support creating validators from non standard callables by using defaults to identify them and unwrapping `functools.partial` and `functools.partialmethod` when checking the signature, [#5126](https://github.com/pydantic/pydantic/issues/5126) by [@JensHeinrich](https://github.com/JensHeinrich)
 * Fix mypy plugin for v1.1.1, and fix `dataclass_transform` decorator for pydantic dataclasses, [#5111](https://github.com/pydantic/pydantic/issues/5111) by [@cdce8p](https://github.com/cdce8p)
-* Raise `ValidationError`, not `ConfigError`, when a discriminator value is unhashable, [#4773](https://github.com/pydantic/pydantic/issues/4773) by [@kurtmckee](https://github.com/kurtmckee)
+* Raise `ExcelValidationError`, not `ConfigError`, when a discriminator value is unhashable, [#4773](https://github.com/pydantic/pydantic/issues/4773) by [@kurtmckee](https://github.com/kurtmckee)
 
 ## v1.10.5 (2023-02-15)
 
@@ -184,9 +184,9 @@ See [this post](https://docs.pydantic.dev/blog/pydantic-v2-alpha/) for more deta
 * Fix PEP487 `__set_name__` protocol in `BaseModel` for PrivateAttrs, [#4407](https://github.com/pydantic/pydantic/issues/4407) by [@tlambert03](https://github.com/tlambert03)
 * Allow for custom parsing of environment variables via `parse_env_var` in `Config`, [#4406](https://github.com/pydantic/pydantic/issues/4406) by [@acmiyaguchi](https://github.com/acmiyaguchi)
 * Rename `master` to `main`, [#4405](https://github.com/pydantic/pydantic/issues/4405) by [@hramezani](https://github.com/hramezani)
-* Fix `StrictStr` does not raise `ValidationError` when `max_length` is present in `Field`, [#4388](https://github.com/pydantic/pydantic/issues/4388) by [@hramezani](https://github.com/hramezani)
+* Fix `StrictStr` does not raise `ExcelValidationError` when `max_length` is present in `Field`, [#4388](https://github.com/pydantic/pydantic/issues/4388) by [@hramezani](https://github.com/hramezani)
 * Make `SecretStr` and `SecretBytes` hashable, [#4387](https://github.com/pydantic/pydantic/issues/4387) by [@chbndrhnns](https://github.com/chbndrhnns)
-* Fix `StrictBytes` does not raise `ValidationError` when `max_length` is present in `Field`, [#4380](https://github.com/pydantic/pydantic/issues/4380) by [@JeanArhancet](https://github.com/JeanArhancet)
+* Fix `StrictBytes` does not raise `ExcelValidationError` when `max_length` is present in `Field`, [#4380](https://github.com/pydantic/pydantic/issues/4380) by [@JeanArhancet](https://github.com/JeanArhancet)
 * Add support for bare `type`, [#4375](https://github.com/pydantic/pydantic/issues/4375) by [@hramezani](https://github.com/hramezani)
 * Support Python 3.11, including binaries for 3.11 in PyPI, [#4374](https://github.com/pydantic/pydantic/issues/4374) by [@samuelcolvin](https://github.com/samuelcolvin)
 * Add support for `re.Pattern`, [#4366](https://github.com/pydantic/pydantic/issues/4366) by [@hramezani](https://github.com/hramezani)
@@ -838,7 +838,7 @@ Thank you to pydantic's sponsors: [@matin](https://github.com/matin), [@tiangolo
 * Better `str`/`repr` logic for `ModelField`, [#912](https://github.com/pydantic/pydantic/issues/912) by [@samuelcolvin](https://github.com/samuelcolvin)
 * Fix `ConstrainedList`, update schema generation to reflect `min_items` and `max_items` `Field()` arguments, [#917](https://github.com/pydantic/pydantic/issues/917) by [@samuelcolvin](https://github.com/samuelcolvin)
 * Allow abstracts sets (eg. dict keys) in the `include` and `exclude` arguments of `dict()`, [#921](https://github.com/pydantic/pydantic/issues/921) by [@samuelcolvin](https://github.com/samuelcolvin)
-* Fix JSON serialization errors on `ValidationError.json()` by using `pydantic_encoder`, [#922](https://github.com/pydantic/pydantic/issues/922) by [@samuelcolvin](https://github.com/samuelcolvin)
+* Fix JSON serialization errors on `ExcelValidationError.json()` by using `pydantic_encoder`, [#922](https://github.com/pydantic/pydantic/issues/922) by [@samuelcolvin](https://github.com/samuelcolvin)
 * Clarify usage of `remove_untouched`, improve error message for types with no validators, [#926](https://github.com/pydantic/pydantic/issues/926) by [@retnikt](https://github.com/retnikt)
 
 ## v1.0b2 (2019-10-07)
@@ -876,7 +876,7 @@ Thank you to pydantic's sponsors: [@matin](https://github.com/matin), [@tiangolo
 * add documentation for Pycharm Plugin, [#750](https://github.com/pydantic/pydantic/issues/750) by [@koxudaxi](https://github.com/koxudaxi)
 * fix broken examples in the docs, [#753](https://github.com/pydantic/pydantic/issues/753) by [@dmontagu](https://github.com/dmontagu)
 * moving typing related objects into `pydantic.typing`, [#761](https://github.com/pydantic/pydantic/issues/761) by [@samuelcolvin](https://github.com/samuelcolvin)
-* Minor performance improvements to `ErrorWrapper`, `ValidationError` and datetime parsing, [#763](https://github.com/pydantic/pydantic/issues/763) by [@samuelcolvin](https://github.com/samuelcolvin)
+* Minor performance improvements to `ErrorWrapper`, `ExcelValidationError` and datetime parsing, [#763](https://github.com/pydantic/pydantic/issues/763) by [@samuelcolvin](https://github.com/samuelcolvin)
 * Improvements to `datetime`/`date`/`time`/`timedelta` types: more descriptive errors,
   change errors to `value_error` not `type_error`, support bytes, [#766](https://github.com/pydantic/pydantic/issues/766) by [@samuelcolvin](https://github.com/samuelcolvin)
 * fix error messages for `Literal` types with multiple allowed values, [#770](https://github.com/pydantic/pydantic/issues/770) by [@dmontagu](https://github.com/dmontagu)
@@ -892,7 +892,7 @@ Thank you to pydantic's sponsors: [@matin](https://github.com/matin), [@tiangolo
   on validators, [#803](https://github.com/pydantic/pydantic/issues/803) by [@samuelcolvin](https://github.com/samuelcolvin)
 * add support for `Type[T]` type hints, [#807](https://github.com/pydantic/pydantic/issues/807) by [@timonbimon](https://github.com/timonbimon)
 * Performance improvements from removing `change_exceptions`, change how pydantic error are constructed, [#819](https://github.com/pydantic/pydantic/issues/819) by [@samuelcolvin](https://github.com/samuelcolvin)
-* Fix the error message arising when a `BaseModel`-type model field causes a `ValidationError` during parsing, [#820](https://github.com/pydantic/pydantic/issues/820) by [@dmontagu](https://github.com/dmontagu)
+* Fix the error message arising when a `BaseModel`-type model field causes a `ExcelValidationError` during parsing, [#820](https://github.com/pydantic/pydantic/issues/820) by [@dmontagu](https://github.com/dmontagu)
 * allow `getter_dict` on `Config`, modify `GetterDict` to be more like a `Mapping` object and thus easier to work with, [#821](https://github.com/pydantic/pydantic/issues/821) by [@samuelcolvin](https://github.com/samuelcolvin)
 * Only check `TypeVar` param on base `GenericModel` class, [#842](https://github.com/pydantic/pydantic/issues/842) by [@zpencerq](https://github.com/zpencerq)
 * rename `Model._schema_cache` -> `Model.__schema_cache__`, `Model._json_encoder` -> `Model.__json_encoder__`,
@@ -912,7 +912,7 @@ Thank you to pydantic's sponsors: [@matin](https://github.com/matin), [@tiangolo
 
 ## v0.32 (2019-08-06)
 
-* add model name to `ValidationError` error message, [#676](https://github.com/pydantic/pydantic/issues/676) by [@dmontagu](https://github.com/dmontagu)
+* add model name to `ExcelValidationError` error message, [#676](https://github.com/pydantic/pydantic/issues/676) by [@dmontagu](https://github.com/dmontagu)
 * **breaking change**: remove `__getattr__` and rename `__values__` to `__dict__` on `BaseModel`,
   deprecation warning on use `__values__` attr, attributes access speed increased up to 14 times, [#712](https://github.com/pydantic/pydantic/issues/712) by [@Bobronium](https://github.com/Bobronium)
 * support `ForwardRef` (without self-referencing annotations) in Python 3.6, [#706](https://github.com/pydantic/pydantic/issues/706) by [@koxudaxi](https://github.com/koxudaxi)
@@ -991,7 +991,7 @@ Thank you to pydantic's sponsors: [@matin](https://github.com/matin), [@tiangolo
 * fix variable length tuples support, [#495](https://github.com/pydantic/pydantic/issues/495) by [@pilosus](https://github.com/pilosus)
 * fix return type hint for `create_model`, [#526](https://github.com/pydantic/pydantic/issues/526) by [@dmontagu](https://github.com/dmontagu)
 * **Breaking Change:** fix `.dict(skip_keys=True)` skipping values set via alias (this involves changing
-  `validate_model()` to always returns `Tuple[Dict[str, Any], Set[str], Optional[ValidationError]]`), [#517](https://github.com/pydantic/pydantic/issues/517) by [@sommd](https://github.com/sommd)
+  `validate_model()` to always returns `Tuple[Dict[str, Any], Set[str], Optional[ExcelValidationError]]`), [#517](https://github.com/pydantic/pydantic/issues/517) by [@sommd](https://github.com/sommd)
 * fix to schema generation for `IPv4Address`, `IPv6Address`, `IPv4Interface`,
   `IPv6Interface`, `IPv4Network`, `IPv6Network` [#532](https://github.com/pydantic/pydantic/issues/532) by [@euri10](https://github.com/euri10)
 * add `Color` type, [#504](https://github.com/pydantic/pydantic/issues/504) by [@pilosus](https://github.com/pilosus) and [@samuelcolvin](https://github.com/samuelcolvin)
@@ -1040,7 +1040,7 @@ Thank you to pydantic's sponsors: [@matin](https://github.com/matin), [@tiangolo
 
 * fix type hints of `parse_obj` and similar methods, [#405](https://github.com/pydantic/pydantic/issues/405) by [@erosennin](https://github.com/erosennin)
 * fix submodel validation, [#403](https://github.com/pydantic/pydantic/issues/403) by [@samuelcolvin](https://github.com/samuelcolvin)
-* correct type hints for `ValidationError.json`, [#406](https://github.com/pydantic/pydantic/issues/406) by [@layday](https://github.com/layday)
+* correct type hints for `ExcelValidationError.json`, [#406](https://github.com/pydantic/pydantic/issues/406) by [@layday](https://github.com/layday)
 
 ## v0.20.0 (2019-02-18)
 

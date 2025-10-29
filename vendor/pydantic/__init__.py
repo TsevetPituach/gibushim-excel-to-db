@@ -5,7 +5,7 @@ from .class_validators import root_validator, validator
 from .config import BaseConfig, ConfigDict, Extra
 from .decorator import validate_arguments
 from .env_settings import BaseSettings
-from .error_wrappers import ValidationError
+from .error_wrappers import ExcelValidationError
 from .errors import *
 from .fields import Field, PrivateAttr, Required
 from .main import *
@@ -37,7 +37,7 @@ __all__ = [
     # env_settings
     'BaseSettings',
     # error_wrappers
-    'ValidationError',
+    'ExcelValidationError',
     # fields
     'Field',
     'Required',

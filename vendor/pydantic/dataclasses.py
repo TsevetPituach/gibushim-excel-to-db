@@ -42,7 +42,7 @@ from typing_extensions import dataclass_transform
 
 from .class_validators import gather_all_validators
 from .config import BaseConfig, ConfigDict, Extra, get_config
-from .error_wrappers import ValidationError
+from .error_wrappers import ExcelValidationError
 from .errors import DataclassTypeError
 from .fields import Field, FieldInfo, Required, Undefined
 from .main import create_model, validate_model
@@ -435,7 +435,7 @@ def _dataclass_validate_assignment_setattr(self: 'Dataclass', name: str, value: 
         if known_field:
             value, error_ = known_field.validate(value, d, loc=name, cls=self.__class__)
             if error_:
-                raise ValidationError([error_], self.__class__)
+                raise ExcelValidationError([error_], self.__class__)
 
     object.__setattr__(self, name, value)
 

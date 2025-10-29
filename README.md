@@ -8,7 +8,8 @@ Quick Start
 
 - Install deps: `python -m pip install -r requirements.txt`
 - Run (Windows):
-  - `python -m excel_to_db_code.main --excel <excel-path> --stage <stage-number> --dsn "postgresql://postgres:Rr123456!@localhost:5432/gibushim" --output logs\insert_log.csv`
+  - Via module: `python -m excel_to_db_code --excel <excel-path> --stage <stage-number> --dsn "postgresql://postgres:Rr123456!@localhost:5432/gibushim" --output logs\insert_log.csv`
+  - Or after `pip install .`: `excel-to-db --excel <excel-path> --stage <stage-number> --dsn "postgresql://postgres:Rr123456!@localhost:5432/gibushim" --output logs\insert_log.csv`
 
 The command reads the active sheet, validates, resolves IDs, inserts rows, and logs results.
 
@@ -55,4 +56,3 @@ Offline Usage (wheelhouse + vendor)
 Notes
 - Uses parameterized queries and a single transaction for performance/safety.
 - Tested with Python 3.8+.
-

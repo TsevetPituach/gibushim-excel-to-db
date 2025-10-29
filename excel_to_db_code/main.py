@@ -3,13 +3,16 @@ import csv
 from pathlib import Path
 from typing import List, Optional, Tuple
 
+from excel_to_db_code.models.duplication_validation import DuplicationValidation
+from excel_to_db_code.models.excel_validation_error import ExcelValidationError
 from tqdm import tqdm
 
 from .db import DB
 from .logger import get_logger, setup_logging
 from .excel_reader import iter_excel_halves
-from .validators import HalfInput, ValidationError, validate_half, find_duplicate_keys_in_excel
-from .evaluation_insert import EvaluationInsert
+from .models import HalfInput
+from .validators import find_duplicate_keys_in_db, validate_half, find_duplicate_keys_in_excel
+from .models.evaluation_insert import EvaluationInsert
 
 
 log = get_logger(__name__)
@@ -22,28 +25,21 @@ def main(argv: Optional[List[str]] = None) -> int:
     excel_path = Path(args.excel)
     output_path = Path(args.output)
     errors_csv = output_path.parent / "validation_errors.csv"
+    duplications_error = output_path.parent / "duplications_errors.csv"
 
     db = DB(args.dsn)
 
     inserts, all_errors = _collect_inserts(db=db, excel_path=excel_path, stage=args.stage)
 
-    # Simple duplicate check by (stage, assessor_id, soldier_id) before DB work
-    duplicate_inserts = find_duplicate_keys_in_excel(inserts)
-    if duplicate_inserts:
-        log.error("Duplicates in the Excel (stage, assessor_id, soldier_id):")
-        for d in duplicate_inserts:
-            try:
-                stage_val, assessor_id_val, soldier_id_val = d  # type: ignore[misc]
-            except Exception:
-                stage_val = getattr(d, "stage", None)
-                assessor_id_val = getattr(d, "assessor_id", None)
-                soldier_id_val = getattr(d, "soldier_id", None)
-            log.error(
-                f"stage: {stage_val}, assessor_id: {assessor_id_val}, soldier_id: {soldier_id_val}"
-            )
-        # Fail fast to avoid unexpected DB state; replace with RuntimeError for always-on enforcement
-        assert not duplicate_inserts, f"Duplicate keys: {duplicate_inserts}"
+    duplicate_inserts_in_excel: List[DuplicationValidation] = find_duplicate_keys_in_excel(inserts)
+    if len(duplicate_inserts_in_excel) > 0:
+        _save_excel_duplications_errors(duplications_error, duplicate_inserts_in_excel, "DUPLICATIONS IN EXCEL")
+        assert not duplicate_inserts_in_excel, f"Duplicate keys in the Excel: {duplicate_inserts_in_excel}"
 
+    duplicate_inserts_in_excel_and_db: List[DuplicationValidation] = find_duplicate_keys_in_db(db, inserts)
+    if len(duplicate_inserts_in_excel_and_db) > 0:
+        _save_db_duplications_errors(duplications_error, duplicate_inserts_in_excel_and_db, "DUPLICATIONS IN EXCEL AND DB")
+        assert not duplicate_inserts_in_excel_and_db, f"Duplicate keys in the Excel and DB: {duplicate_inserts_in_excel_and_db}"
 
     if all_errors:
         _save_validation_errors(errors_csv, all_errors)
@@ -78,19 +74,34 @@ def _parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     p.add_argument("--dsn", required=True, help="PostgreSQL DSN")
     p.add_argument(
         "--output",
-        default=str(Path("out") / "insert_api_assessorevaluation.sql"),
-        help="Output .sql file path",
+        default=str(Path("logs") / "insert_log.csv"),
+        help="CSV execution log output path",
     )
     return p.parse_args(argv)
 
 
-def _save_validation_errors(path: Path, errors: List[ValidationError]) -> None:
+def _save_validation_errors(path: Path, errors: List[ExcelValidationError]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
-        w.writerow(["row_number", "half", "field", "message"])
         for e in errors:
-            w.writerow([e.row_number, e.half, e.field, e.message])
+            w.writerow([f"row_number: {e.row_number}, half: {e.half}, field: {e.field}, message: {e.message}"])
+
+def _save_excel_duplications_errors(path: Path, duplicate_inserts: List[DuplicationValidation], msg: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", newline="", encoding="utf-8") as f:
+        w = csv.writer(f)
+        for d in duplicate_inserts:
+            w.writerow([f"{msg}: stage: {d.stage}, assessor_id: {d.assessor_id}, soldier_id: {d.soldier_id}"])
+
+def _save_db_duplications_errors(path: Path, duplicate_inserts: List[DuplicationValidation], msg: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", newline="", encoding="utf-8") as f:
+        w = csv.writer(f)
+        for d in duplicate_inserts:
+            w.writerow([
+                f"{msg}: stage: {d.stage}, assessor_id: {d.assessor_id}, soldier_id: {d.soldier_id}"
+            ])
 
 def _resolve_evaluation_ids(
     db: DB,
@@ -98,16 +109,16 @@ def _resolve_evaluation_ids(
     stage: int,
     row_number: int,
     half_index: int,
-) -> Tuple[Optional[Tuple[int, int, int]], List[ValidationError]]:
+) -> Tuple[Optional[Tuple[int, int, int]], List[ExcelValidationError]]:
     """Resolve (soldier_id, myun_id, assessor_id) via DB lookups.
     Returns tuple or (None, [errors]).
     """
-    errors: List[ValidationError] = []
+    errors: List[ExcelValidationError] = []
 
     soldier_id = db.get_participant_id(half.chest_number)
     if soldier_id is None:
         errors.append(
-            ValidationError(
+            ExcelValidationError(
                 row_number=row_number,
                 half=half_index,
                 field="chest_number",
@@ -126,7 +137,7 @@ def _resolve_evaluation_ids(
         sql_result = db.get_assessoringroup(group_id=half.group_id, stage=stage)  # type: ignore[call-arg]
     if sql_result is None:
         errors.append(
-            ValidationError(
+            ExcelValidationError(
                 row_number=row_number,
                 half=half_index,
                 field="group_id/stage",
@@ -155,8 +166,8 @@ def _build_insert_sql() -> str:
 
 def _collect_inserts(
     db: DB, excel_path: Path, stage: int
-) -> Tuple[List[EvaluationInsert], List[ValidationError]]:
-    all_errors: List[ValidationError] = []
+) -> Tuple[List[EvaluationInsert], List[ExcelValidationError]]:
+    all_errors: List[ExcelValidationError] = []
     inserts: List[EvaluationInsert] = []
 
     halves = list(iter_excel_halves(str(excel_path)))

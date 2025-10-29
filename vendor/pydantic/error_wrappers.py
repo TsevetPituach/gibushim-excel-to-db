@@ -22,7 +22,7 @@ if TYPE_CHECKING:
         ctx: Dict[str, Any]
 
 
-__all__ = 'ErrorWrapper', 'ValidationError'
+__all__ = 'ErrorWrapper', 'ExcelValidationError'
 
 
 class ErrorWrapper(Representation):
@@ -47,7 +47,7 @@ class ErrorWrapper(Representation):
 ErrorList = Union[Sequence[Any], ErrorWrapper]
 
 
-class ValidationError(Representation, ValueError):
+class ExcelValidationError(Representation, ValueError):
     __slots__ = 'raw_errors', 'model', '_error_cache'
 
     def __init__(self, errors: Sequence[ErrorList], model: 'ModelOrDc') -> None:
@@ -107,7 +107,7 @@ def flatten_errors(
             else:
                 error_loc = error.loc_tuple()
 
-            if isinstance(error.exc, ValidationError):
+            if isinstance(error.exc, ExcelValidationError):
                 yield from flatten_errors(error.exc.raw_errors, config, error_loc)
             else:
                 yield error_dict(error.exc, config, error_loc)

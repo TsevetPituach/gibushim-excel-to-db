@@ -28,7 +28,7 @@ from typing_extensions import dataclass_transform
 
 from .class_validators import ValidatorGroup, extract_root_validators, extract_validators, inherit_validators
 from .config import BaseConfig, Extra, inherit_config, prepare_config
-from .error_wrappers import ErrorWrapper, ValidationError
+from .error_wrappers import ErrorWrapper, ExcelValidationError
 from .errors import ConfigError, DictError, ExtraError, MissingError
 from .fields import (
     MAPPING_LIKE_SHAPES,
@@ -333,7 +333,7 @@ class BaseModel(Representation, metaclass=ModelMetaclass):
         """
         Create a new model by parsing and validating input data from keyword arguments.
 
-        Raises ValidationError if the input data cannot be parsed to form a valid model.
+        Raises ExcelValidationError if the input data cannot be parsed to form a valid model.
         """
         # Uses something other than `self` the first arg to allow "self" as a settable attribute
         values, fields_set, validation_error = validate_model(__pydantic_self__.__class__, data)
@@ -368,7 +368,7 @@ class BaseModel(Representation, metaclass=ModelMetaclass):
                 try:
                     new_values = validator(self.__class__, new_values)
                 except (ValueError, TypeError, AssertionError) as exc:
-                    raise ValidationError([ErrorWrapper(exc, loc=ROOT_KEY)], self.__class__)
+                    raise ExcelValidationError([ErrorWrapper(exc, loc=ROOT_KEY)], self.__class__)
 
             known_field = self.__fields__.get(name, None)
             if known_field:
@@ -381,7 +381,7 @@ class BaseModel(Representation, metaclass=ModelMetaclass):
                 dict_without_original_value = {k: v for k, v in self.__dict__.items() if k != name}
                 value, error_ = known_field.validate(value, dict_without_original_value, loc=name, cls=self.__class__)
                 if error_:
-                    raise ValidationError([error_], self.__class__)
+                    raise ExcelValidationError([error_], self.__class__)
                 else:
                     new_values[name] = value
 
@@ -394,7 +394,7 @@ class BaseModel(Representation, metaclass=ModelMetaclass):
                 except (ValueError, TypeError, AssertionError) as exc:
                     errors.append(ErrorWrapper(exc, loc=ROOT_KEY))
             if errors:
-                raise ValidationError(errors, self.__class__)
+                raise ExcelValidationError(errors, self.__class__)
 
             # update the whole __dict__ as other values than just `value`
             # may be changed (e.g. with `root_validator`)
@@ -522,7 +522,7 @@ class BaseModel(Representation, metaclass=ModelMetaclass):
                 obj = dict(obj)
             except (TypeError, ValueError) as e:
                 exc = TypeError(f'{cls.__name__} expected dict not {obj.__class__.__name__}')
-                raise ValidationError([ErrorWrapper(exc, loc=ROOT_KEY)], cls) from e
+                raise ExcelValidationError([ErrorWrapper(exc, loc=ROOT_KEY)], cls) from e
         return cls(**obj)
 
     @classmethod
@@ -545,7 +545,7 @@ class BaseModel(Representation, metaclass=ModelMetaclass):
                 json_loads=cls.__config__.json_loads,
             )
         except (ValueError, TypeError, UnicodeDecodeError) as e:
-            raise ValidationError([ErrorWrapper(e, loc=ROOT_KEY)], cls)
+            raise ExcelValidationError([ErrorWrapper(e, loc=ROOT_KEY)], cls)
         return cls.parse_obj(obj)
 
     @classmethod
@@ -1031,7 +1031,7 @@ _missing = object()
 
 def validate_model(  # noqa: C901 (ignore complexity)
     model: Type[BaseModel], input_data: 'DictStrAny', cls: 'ModelOrDc' = None
-) -> Tuple['DictStrAny', 'SetStr', Optional[ValidationError]]:
+) -> Tuple['DictStrAny', 'SetStr', Optional[ExcelValidationError]]:
     """
     validate data against a model.
     """
@@ -1049,7 +1049,7 @@ def validate_model(  # noqa: C901 (ignore complexity)
         try:
             input_data = validator(cls_, input_data)
         except (ValueError, TypeError, AssertionError) as exc:
-            return {}, set(), ValidationError([ErrorWrapper(exc, loc=ROOT_KEY)], cls_)
+            return {}, set(), ExcelValidationError([ErrorWrapper(exc, loc=ROOT_KEY)], cls_)
 
     for name, field in model.__fields__.items():
         value = input_data.get(field.alias, _missing)
@@ -1104,6 +1104,6 @@ def validate_model(  # noqa: C901 (ignore complexity)
             errors.append(ErrorWrapper(exc, loc=ROOT_KEY))
 
     if errors:
-        return values, fields_set, ValidationError(errors, cls_)
+        return values, fields_set, ExcelValidationError(errors, cls_)
     else:
         return values, fields_set, None
