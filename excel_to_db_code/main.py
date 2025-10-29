@@ -3,6 +3,8 @@ import csv
 from pathlib import Path
 from typing import List, Optional, Tuple
 
+from excel_to_db_code.enums.exit_code import ExitCode
+from excel_to_db_code.errors_to_file import save_excel_duplications_errors, save_validation_errors
 from excel_to_db_code.models.duplication_validation import DuplicationValidation
 from excel_to_db_code.models.excel_validation_error import ExcelValidationError
 from tqdm import tqdm
@@ -25,25 +27,14 @@ def main(argv: Optional[List[str]] = None) -> int:
     excel_path = Path(args.excel)
     output_path = Path(args.output)
     errors_csv = output_path.parent / "validation_errors.csv"
-    duplications_error = output_path.parent / "duplications_errors.csv"
+    duplications_csv = output_path.parent / "duplications_errors.csv"
 
     db = DB(args.dsn)
 
     inserts, all_errors = _collect_inserts(db=db, excel_path=excel_path, stage=args.stage)
-
-    duplicate_inserts_in_excel: List[DuplicationValidation] = find_duplicate_keys_in_excel(inserts)
-    if len(duplicate_inserts_in_excel) > 0:
-        _save_excel_duplications_errors(duplications_error,db, duplicate_inserts_in_excel, "DUPLICATIONS IN EXCEL")
-        assert not duplicate_inserts_in_excel, f"Duplicate keys in the Excel: {duplicate_inserts_in_excel}"
-
-    duplicate_inserts_in_excel_and_db: List[DuplicationValidation] = find_duplicate_keys_in_db(db, inserts)
-    if len(duplicate_inserts_in_excel_and_db) > 0:
-        _save_db_duplications_errors(duplications_error, db, duplicate_inserts_in_excel_and_db, "DUPLICATIONS IN EXCEL AND DB")
-        assert not duplicate_inserts_in_excel_and_db, f"Duplicate keys in the Excel and DB: {duplicate_inserts_in_excel_and_db}"
-
-    if all_errors:
-        _save_validation_errors(errors_csv, all_errors)
-        log.warning("Validation errors found: %d (see %s)", len(all_errors), errors_csv)
+    validation_num = _validate_inserts(inserts, db, all_errors, errors_csv, duplications_csv)
+    if validation_num != ExitCode.OK:
+        return int(validation_num)
 
     sql = _build_insert_sql()
 
@@ -61,7 +52,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     except Exception as e:
         db.rollback()
         log.exception("Execution failed; transaction rolled back: %s", e)
-        return 3
+        return int(ExitCode.RUNTIME_ERROR)
     
 
 def _parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
@@ -80,32 +71,32 @@ def _parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     return p.parse_args(argv)
 
 
-def _save_validation_errors(path: Path, errors: List[ExcelValidationError]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", newline="", encoding="utf-8") as f:
-        w = csv.writer(f)
-        for e in errors:
-            w.writerow([f"row_number: {e.row_number}, half: {e.half}, field: {e.field}, message: {e.message}"])
+def _validate_inserts(
+    inserts: List[EvaluationInsert],
+    db: DB,
+    all_errors: List[ExcelValidationError],
+    errors_csv: Path,
+    duplications_csv: Path,
+) -> ExitCode:
+    if all_errors:
+        save_validation_errors(errors_csv, all_errors)
+        log.error("Validation errors found: %d (see %s)", len(all_errors), errors_csv)
+        return ExitCode.VALIDATION_ERROR
 
-def _save_excel_duplications_errors(path: Path, db: DB, duplicate_inserts: List[DuplicationValidation], msg: str) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", newline="", encoding="utf-8") as f:
-        w = csv.writer(f)
-        for d in duplicate_inserts:
-            chest = db.get_chest_number(d.soldier_id)
-            chest_str = str(chest) if chest is not None else ""
-            w.writerow([f"{msg}: stage: {d.stage}, assessor_id: {d.assessor_id}, soldier_id: {d.soldier_id}, chest_number: {chest_str}"])
+    duplicate_inserts_in_excel: List[DuplicationValidation] = find_duplicate_keys_in_excel(inserts)
+    if len(duplicate_inserts_in_excel) > 0:
+        save_excel_duplications_errors(duplications_csv,db, duplicate_inserts_in_excel, "DUPLICATIONS IN EXCEL")
+        log.error(f"Duplicates in Excel: {len(duplicate_inserts_in_excel)} (see {duplications_csv})")
+        return ExitCode.DUPLICATES
 
-def _save_db_duplications_errors(path: Path, db: DB, duplicate_inserts: List[DuplicationValidation], msg: str) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", newline="", encoding="utf-8") as f:
-        w = csv.writer(f)
-        for d in duplicate_inserts:
-            chest = db.get_chest_number(d.soldier_id)
-            chest_str = str(chest) if chest is not None else ""
-            w.writerow([
-                f"{msg}: stage: {d.stage}, assessor_id: {d.assessor_id}, soldier_id: {d.soldier_id}, chest_number: {chest_str}"
-            ])
+    duplicate_inserts_in_excel_and_db: List[DuplicationValidation] = find_duplicate_keys_in_db(db, inserts)
+    if len(duplicate_inserts_in_excel_and_db) > 0:
+        save_excel_duplications_errors(duplications_csv, db, duplicate_inserts_in_excel_and_db, "DUPLICATIONS IN EXCEL AND DB")
+        log.error(f"Duplicates in Excel and DB: {len(duplicate_inserts_in_excel_and_db)} (see {duplications_csv})")
+        return ExitCode.DUPLICATES
+    
+    return ExitCode.OK
+
 
 def _resolve_evaluation_ids(
     db: DB,

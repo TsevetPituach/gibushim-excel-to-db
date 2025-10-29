@@ -19,7 +19,7 @@ def setup_logging(level: str = "INFO") -> None:
         return
 
     handler = logging.StreamHandler(sys.stdout)
-    fmt = "%(asctime)s %(levelname).1s %(name)s: %(message)s"
+    fmt = "%(asctime)s: %(message)s"
     datefmt = "%H:%M:%S"
     handler.setFormatter(logging.Formatter(fmt=fmt, datefmt=datefmt))
 

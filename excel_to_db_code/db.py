@@ -21,7 +21,7 @@ class DB:
 
     def connect(self) -> None:
         if self._conn is None:
-            log.debug("Connecting to PostgreSQL")
+            log.info("Connecting to PostgreSQL")
             self._conn = psycopg2.connect(self.dsn)
             self._conn.autocommit = False
 

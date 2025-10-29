@@ -187,7 +187,7 @@ class Tokenizer(object):
                 self.formula[self.offset:self.offset + 2],
                 Token.OP_IN
             ))
-            return 2
+            return 2 # EXIT_DUPLICATES = 2
         curr_char = self.formula[self.offset]  # guaranteed to be 1 char
         assert curr_char in '%*/^&=><+-'
         if curr_char == '%':
