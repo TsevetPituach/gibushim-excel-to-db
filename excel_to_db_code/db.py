@@ -62,6 +62,16 @@ class DB:
             return int(rows[0][0])
         return None
 
+    def get_chest_number(self, soldier_id: int) -> Optional[int]:
+        """Return chest_number for a given participant id (soldier_id)."""
+        sql = "SELECT chest_number FROM api_participant WHERE id = %s"
+        with self.cursor() as cur:
+            cur.execute(sql, (soldier_id,))
+            row = cur.fetchone()
+        if row:
+            return int(row[0])
+        return None
+
 
     def find_existing_evaluation_keys(
         self, keys: Sequence[DuplicationValidation]

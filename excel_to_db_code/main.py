@@ -33,12 +33,12 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     duplicate_inserts_in_excel: List[DuplicationValidation] = find_duplicate_keys_in_excel(inserts)
     if len(duplicate_inserts_in_excel) > 0:
-        _save_excel_duplications_errors(duplications_error, duplicate_inserts_in_excel, "DUPLICATIONS IN EXCEL")
+        _save_excel_duplications_errors(duplications_error,db, duplicate_inserts_in_excel, "DUPLICATIONS IN EXCEL")
         assert not duplicate_inserts_in_excel, f"Duplicate keys in the Excel: {duplicate_inserts_in_excel}"
 
     duplicate_inserts_in_excel_and_db: List[DuplicationValidation] = find_duplicate_keys_in_db(db, inserts)
     if len(duplicate_inserts_in_excel_and_db) > 0:
-        _save_db_duplications_errors(duplications_error, duplicate_inserts_in_excel_and_db, "DUPLICATIONS IN EXCEL AND DB")
+        _save_db_duplications_errors(duplications_error, db, duplicate_inserts_in_excel_and_db, "DUPLICATIONS IN EXCEL AND DB")
         assert not duplicate_inserts_in_excel_and_db, f"Duplicate keys in the Excel and DB: {duplicate_inserts_in_excel_and_db}"
 
     if all_errors:
@@ -87,20 +87,24 @@ def _save_validation_errors(path: Path, errors: List[ExcelValidationError]) -> N
         for e in errors:
             w.writerow([f"row_number: {e.row_number}, half: {e.half}, field: {e.field}, message: {e.message}"])
 
-def _save_excel_duplications_errors(path: Path, duplicate_inserts: List[DuplicationValidation], msg: str) -> None:
+def _save_excel_duplications_errors(path: Path, db: DB, duplicate_inserts: List[DuplicationValidation], msg: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
         for d in duplicate_inserts:
-            w.writerow([f"{msg}: stage: {d.stage}, assessor_id: {d.assessor_id}, soldier_id: {d.soldier_id}"])
+            chest = db.get_chest_number(d.soldier_id)
+            chest_str = str(chest) if chest is not None else ""
+            w.writerow([f"{msg}: stage: {d.stage}, assessor_id: {d.assessor_id}, soldier_id: {d.soldier_id}, chest_number: {chest_str}"])
 
-def _save_db_duplications_errors(path: Path, duplicate_inserts: List[DuplicationValidation], msg: str) -> None:
+def _save_db_duplications_errors(path: Path, db: DB, duplicate_inserts: List[DuplicationValidation], msg: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
         for d in duplicate_inserts:
+            chest = db.get_chest_number(d.soldier_id)
+            chest_str = str(chest) if chest is not None else ""
             w.writerow([
-                f"{msg}: stage: {d.stage}, assessor_id: {d.assessor_id}, soldier_id: {d.soldier_id}"
+                f"{msg}: stage: {d.stage}, assessor_id: {d.assessor_id}, soldier_id: {d.soldier_id}, chest_number: {chest_str}"
             ])
 
 def _resolve_evaluation_ids(
