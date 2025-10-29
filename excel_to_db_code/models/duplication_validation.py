@@ -1,7 +1,8 @@
 from dataclasses import dataclass
 
+
 @dataclass
-class DuplicationValidation():
+class DuplicationValidation:
     stage: int
-    soldier_id: int  # 1 or 2
+    soldier_id: int
     assessor_id: int

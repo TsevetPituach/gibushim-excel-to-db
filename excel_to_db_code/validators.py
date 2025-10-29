@@ -78,15 +78,15 @@ def validate_half(
         return None, errors
     
 
-def _insert_key(ev: EvaluationInsert) -> DuplicationValidation:
-    return DuplicationValidation(ev.stage, ev.assessor_id, ev.soldier_id)
+def _insert_keys(ev: EvaluationInsert) -> DuplicationValidation:
+    return DuplicationValidation(stage=ev.stage, assessor_id=ev.assessor_id, soldier_id=ev.soldier_id)
 
 def find_duplicate_keys_in_excel(inserts: List[EvaluationInsert]) -> List[DuplicationValidation]:
     """Return duplicates by (stage, assessor_id, soldier_id) present in Excel-derived inserts."""
     seen: List[DuplicationValidation] = []
     duplications: List[DuplicationValidation] = []
     for ev in inserts:
-        keys = _insert_key(ev)
+        keys = _insert_keys(ev)
         if keys in seen:
             duplications.append(keys)
         else:
@@ -97,9 +97,7 @@ def find_duplicate_keys_in_excel(inserts: List[EvaluationInsert]) -> List[Duplic
 def find_duplicate_keys_in_db(db: DB, inserts: List[EvaluationInsert]) -> List[DuplicationValidation]:
     """Check which (stage, assessor_id, soldier_id) from inserts already exist in the DB,
     """
-    inserts_keys: List[DuplicationValidation] = [
-        DuplicationValidation(ev.stage, ev.assessor_id, ev.soldier_id) for ev in inserts
-    ]
+    inserts_keys: List[DuplicationValidation] = [_insert_keys(ev) for ev in inserts]
     if not inserts_keys:
         return []
     return db.find_existing_evaluation_keys(inserts_keys)
