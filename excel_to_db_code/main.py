@@ -1,5 +1,4 @@
 import argparse
-import csv
 from pathlib import Path
 from typing import List, Optional, Tuple
 
@@ -26,8 +25,8 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     excel_path = Path(args.excel)
     output_path = Path(args.output)
-    errors_csv = output_path.parent / "validation_errors.csv"
-    duplications_csv = output_path.parent / "duplications_errors.csv"
+    errors_csv = output_path.parent / "validation_errors.xlsx"
+    duplications_csv = output_path.parent / "duplications_errors.xlsx"
 
     db = DB(args.dsn)
 
@@ -65,8 +64,8 @@ def _parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     p.add_argument("--dsn", required=True, help="PostgreSQL DSN")
     p.add_argument(
         "--output",
-        default=str(Path("logs") / "insert_log.csv"),
-        help="CSV execution log output path",
+        default=str(Path("logs") / "insert_log.xlsx"),
+        help="Execution log output path (Excel workbook)",
     )
     return p.parse_args(argv)
 
@@ -213,8 +212,22 @@ def _execute_inserts_and_log(
     skipped_rows = 0
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    with db.cursor() as cur, output_path.open("w", newline="", encoding="utf-8") as f:
-        writer = csv.writer(f)
+    with db.cursor() as cur:
+        from openpyxl import Workbook
+
+        wb = Workbook()
+        ws = wb.active
+        ws.append(
+            [
+                "grade",
+                "comment",
+                "stage",
+                "assessor_id",
+                "myun_id",
+                "soldier_id",
+                "status",
+            ]
+        )
         for ev in tqdm(inserts, desc="Executing"):
             cur.execute(
                 sql,
@@ -233,17 +246,19 @@ def _execute_inserts_and_log(
             else:
                 status = "skipped"
                 skipped_rows += 1
-            writer.writerow(
+            ws.append(
                 [
-                    f"grade: {ev.grade}",
-                    f"comment: {ev.comment}",
-                    f"stage: {ev.stage}",
-                    f"assessor_id: {ev.assessor_id}",
-                    f"myun_id: {ev.myun_id}",
-                    f"soldier_id: {ev.soldier_id}",
-                    f"status: {status}",
+                    ev.grade,
+                    ev.comment,
+                    ev.stage,
+                    ev.assessor_id,
+                    ev.myun_id,
+                    ev.soldier_id,
+                    status,
                 ]
             )
+
+        wb.save(output_path)
 
     return inserted_rows, skipped_rows
 
