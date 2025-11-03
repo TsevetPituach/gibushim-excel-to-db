@@ -85,13 +85,13 @@ def _validate_inserts(
 
     duplicate_inserts_in_excel: List[DuplicationValidation] = find_duplicate_keys_in_excel(inserts)
     if len(duplicate_inserts_in_excel) > 0:
-        save_excel_duplications_errors(duplications_csv,db, duplicate_inserts_in_excel, "DUPLICATIONS IN EXCEL")
+        save_excel_duplications_errors(duplications_csv, duplicate_inserts_in_excel, inserts)
         log.error(f"Duplicates in Excel: {len(duplicate_inserts_in_excel)} (see {duplications_csv})")
         return ExitCode.DUPLICATES
 
     duplicate_inserts_in_excel_and_db: List[DuplicationValidation] = find_duplicate_keys_in_db(db, inserts)
     if len(duplicate_inserts_in_excel_and_db) > 0:
-        save_excel_duplications_errors(duplications_csv, db, duplicate_inserts_in_excel_and_db, "DUPLICATIONS IN EXCEL AND DB")
+        save_excel_duplications_errors(duplications_csv, duplicate_inserts_in_excel_and_db, inserts)
         log.error(f"Duplicates in Excel and DB: {len(duplicate_inserts_in_excel_and_db)} (see {duplications_csv})")
         return ExitCode.DUPLICATES
     
@@ -188,6 +188,12 @@ def _collect_inserts(
         soldier_id, myun_id, assessor_id = resolved
         inserts.append(
             EvaluationInsert(
+                row_number=row_number,
+                half_index=half_index,
+                group_id=half_model.group_id,
+                chest_number=half_model.chest_number,
+                candidate_name=half_model.candidate_name,
+                assessor_name=half_model.assessor_name,
                 grade=half_model.grade,
                 comment=half_model.comment,
                 stage=stage,
